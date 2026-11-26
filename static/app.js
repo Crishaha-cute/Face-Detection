@@ -203,20 +203,19 @@ async function runChallenge() {
   $("prompt-text").textContent = "✓ Turn confirmed! Next step…";
   await sleep(700);
 
-  // ---------- STEP 3: Close Eyes ----------
-  // Prompt user and wait 2.5 full seconds for user to comfortably close eyes before testing
-  $("prompt-text").textContent = "Close your eyes and hold still";
+  // ---------- STEP 3: Close Eyes (Quick & Responsive) ----------
+  $("prompt-text").textContent = "Close your eyes briefly";
   $("prompt-count").textContent = "";
-  beep(660, 0.2);
+  beep(660, 0.15);
 
-  // Generous waiting period: let the user relax and comfortably shut their eyes
-  await sleep(2500);
+  // Short 300ms transition delay so the user sees the prompt and hears the chime
+  await sleep(300);
 
   let eyesFrames = [];
-  let eyesPassedCount = 0;
   const start3 = Date.now();
 
-  while (eyesPassedCount < 3) {
+  // Requires only 2 quick verified frames (or 1 fast closure) to pass immediately
+  while (eyesFrames.length < 2) {
     if (Date.now() - start3 > 60000) throw new Error("Scan timed out. Please restart.");
     const fullImg = grabFrame();
     const res = await post("/api/verify_pose", {
@@ -228,21 +227,18 @@ async function runChallenge() {
 
     if (res.ok && res.passed) {
       eyesFrames.push(fullImg);
-      eyesPassedCount++;
-      $("prompt-text").textContent = "Keep your eyes closed…";
+      $("prompt-text").textContent = "Eyes closed confirmed…";
     } else {
-      eyesFrames = [];
-      eyesPassedCount = 0;
-      $("prompt-text").textContent = "Close your eyes and hold still";
+      $("prompt-text").textContent = "Close your eyes briefly";
     }
-    await sleep(150);
+    await sleep(90);
   }
 
-  beep(1040, 0.3);
+  beep(1040, 0.2);
   setScanStep(3, 100, [1, 2, 3]);
-  out.eyes = eyesFrames.slice(-2);
+  out.eyes = eyesFrames.length >= 2 ? eyesFrames.slice(-2) : [eyesFrames[0], eyesFrames[0]];
   $("prompt-text").textContent = "✓ Verified! You can open your eyes";
-  await sleep(500);
+  await sleep(200);
 
   return out;
 }
