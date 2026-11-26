@@ -1,4 +1,4 @@
-`"""Downloads the two OpenCV Zoo ONNX models into this folder."""
+"""Downloads the two OpenCV Zoo ONNX models into this folder."""
 import os, urllib.request
 
 BASE = "https://github.com/opencv/opencv_zoo/raw/main/models"
