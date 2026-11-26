@@ -206,10 +206,12 @@ def api_verify_pose():
                        reason=f"Turn your head slightly to the {ch['tilt']}")
 
     elif step == "eyes":
-        open_contrast = float(data.get("open_contrast", 30.0))
-        ratio = analysis.contrast / open_contrast if open_contrast > 0 else 1.0
+        open_contrast = float(data.get("open_contrast", 0.0))
+        if open_contrast <= 0:
+            open_contrast = 28.0
+        ratio = analysis.contrast / open_contrast
         if ratio > CLOSED_RATIO:
-            return jsonify(ok=True, passed=False, ratio=ratio, reason="Close your eyes and hold still")
+            return jsonify(ok=True, passed=False, ratio=ratio, reason="Close your eyes now")
         return jsonify(ok=True, passed=True, ratio=ratio, contrast=analysis.contrast)
 
     return jsonify(ok=False, error="Unknown step"), 400

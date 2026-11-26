@@ -19,7 +19,7 @@ TILT_MIN_DEG = 4.0         # or tilting head slightly
 # Some webcam drivers send a mirrored picture, which swaps left and right. If the error message
 # shows a NEGATIVE angle when you tilt toward the requested shoulder, set FLIP_TILT=1.
 FLIP_TILT = os.environ.get("FLIP_TILT") == "1"
-CLOSED_RATIO = 0.88        # eyes-closed contrast must drop below this fraction of the open-eye contrast
+CLOSED_RATIO = 0.68        # eyes-closed contrast must drop below 68% of baseline open-eye contrast
 POSE_ID_MIN = 0.20         # same-person sanity check on the tilt / eyes-closed frames
 
 
@@ -92,8 +92,8 @@ class FaceEngine:
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         d = max(1.0, math.hypot(b[0] - a[0], b[1] - a[1]))
-        rx = max(5, int(d * 0.18))
-        ry = max(4, int(d * 0.12))
+        rx = max(4, int(d * 0.16))
+        ry = max(3, int(d * 0.09))
         vals = []
         for x, y in (a, b):
             x, y = int(round(x)), int(round(y))

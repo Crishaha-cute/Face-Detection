@@ -127,7 +127,7 @@ async function runChallenge() {
   const out = { token: c.token, straight: [], tilt: [], eyes: [] };
   let baselineRoll = 0;
   let baselineYaw = 0;
-  let openContrast = 30;
+  let openContrasts = [];
 
   // ---------- STEP 1: Look Straight ----------
   // Strictly requires 3 consecutive level frames facing camera
@@ -150,7 +150,9 @@ async function runChallenge() {
       straightPassedCount++;
       baselineRoll = res.roll || 0;
       baselineYaw = res.yaw || 0;
-      openContrast = Math.max(openContrast, res.contrast || 30);
+      if (typeof res.contrast === "number" && res.contrast > 5) {
+        openContrasts.push(res.contrast);
+      }
       $("prompt-text").textContent = "Hold still…";
     } else {
       straightFrames = [];
@@ -159,6 +161,11 @@ async function runChallenge() {
     }
     await sleep(140);
   }
+
+  // Calculate actual open-eye baseline contrast for this user
+  const openContrast = openContrasts.length > 0
+    ? (openContrasts.reduce((a, b) => a + b, 0) / openContrasts.length)
+    : 28.0;
 
   beep(720);
   setScanStep(2, 38, [1]);
@@ -227,9 +234,10 @@ async function runChallenge() {
 
     if (res.ok && res.passed) {
       eyesFrames.push(fullImg);
-      $("prompt-text").textContent = "Eyes closed confirmed…";
+      $("prompt-text").textContent = "Keep eyes closed…";
     } else {
-      $("prompt-text").textContent = "Close your eyes briefly";
+      eyesFrames = [];
+      $("prompt-text").textContent = "Close your eyes now";
     }
     await sleep(90);
   }
