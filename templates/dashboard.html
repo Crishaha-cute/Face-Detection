@@ -8,18 +8,14 @@
     <button id="logout" class="btn small">Sign out</button>
   </header>
 
-  <dl class="stats">
-    <div><dt>Member since</dt><dd><time data-utc="{{ created }}"></time></dd></div>
-    <div><dt>Previous sign-in</dt><dd>{% if previous %}<time data-utc="{{ previous }}"></time>{% else %}This is your first{% endif %}</dd></div>
-    <div><dt>Total sign-ins</dt><dd>{{ total }}</dd></div>
-  </dl>
 
   <!-- Live Face Accessories Studio -->
   <section class="studio-section">
     <div class="studio-header">
       <div>
         <h2>Face Accessories Studio</h2>
-        <p class="lede" style="margin-bottom:0.5rem">Customize your face live with interactive accessories and filters.</p>
+        <p class="lede" style="margin-bottom:0.5rem">Customize your face live with interactive accessories and filters.
+        </p>
       </div>
       <span id="tracker-badge" class="badge">Looking for face…</span>
     </div>
