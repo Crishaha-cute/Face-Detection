@@ -9,22 +9,15 @@
   </header>
 
 
-  <!-- Live Face & Hands AR Studio -->
+  <!-- Live Face Accessories Studio -->
   <section class="studio-section">
     <div class="studio-header">
       <div>
-        <h2>Face & Hand AR Studio</h2>
-        <p class="lede" style="margin-bottom:0.5rem">Customize your face with accessories and control futuristic hand powers live.</p>
+        <h2>Face Accessories Studio</h2>
+        <p class="lede" style="margin-bottom:0.5rem">Customize your face live with interactive accessories and filters.
+        </p>
       </div>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-        <span id="tracker-badge" class="badge">Looking for face…</span>
-        <span id="hand-badge" class="badge">Hand tracking loading…</span>
-      </div>
-    </div>
-
-    <div class="studio-tabs">
-      <button type="button" id="tab-face" class="studio-tab active">👑 Face Accessories</button>
-      <button type="button" id="tab-hands" class="studio-tab">✋ Futuristic Hand Powers</button>
+      <span id="tracker-badge" class="badge">Looking for face…</span>
     </div>
 
     <div class="studio-container">
@@ -33,8 +26,7 @@
         <canvas id="acc-canvas"></canvas>
       </div>
 
-      <!-- Face Accessories Panel -->
-      <div id="panel-face" class="studio-panel">
+      <div class="studio-panel">
         <label class="panel-label">Choose Accessories (combine any)</label>
         <div class="accessory-grid">
           <button type="button" class="acc-btn active" data-item="sunglasses">
@@ -83,63 +75,7 @@
 
         <div class="studio-actions">
           <button type="button" id="acc-snap" class="btn small">📸 Capture Snapshot</button>
-          <button type="button" id="acc-clear" class="btn small ghost neutral">Clear Face Items</button>
-        </div>
-      </div>
-
-      <!-- Futuristic Hand Powers Panel -->
-      <div id="panel-hands" class="studio-panel" hidden>
-        <label class="panel-label">Choose Hand Power (hold hand to camera)</label>
-        <div class="accessory-grid">
-          <button type="button" class="power-btn active" data-power="fire">
-            <span class="acc-icon">🔥</span>
-            <span class="acc-name">Pyrokinesis</span>
-          </button>
-          <button type="button" class="power-btn" data-power="shield">
-            <span class="acc-icon">🌀</span>
-            <span class="acc-name">Mystic Shield</span>
-          </button>
-          <button type="button" class="power-btn" data-power="repulsor">
-            <span class="acc-icon">⚡</span>
-            <span class="acc-name">Arc Repulsor</span>
-          </button>
-          <button type="button" class="power-btn" data-power="lightning">
-            <span class="acc-icon">⚡</span>
-            <span class="acc-name">Cyber Lightning</span>
-          </button>
-          <button type="button" class="power-btn" data-power="nebula">
-            <span class="acc-icon">🪐</span>
-            <span class="acc-name">Cosmic Nebula</span>
-          </button>
-          <button type="button" class="power-btn" data-power="cyberhud">
-            <span class="acc-icon">🦾</span>
-            <span class="acc-name">Cyberpunk HUD</span>
-          </button>
-        </div>
-
-        <div class="control-row">
-          <label class="panel-label" style="margin-bottom:0.2rem">Energy Element Color</label>
-          <div class="color-palette">
-            <button type="button" class="color-dot active" data-color="#ff5500" title="Inferno Red" style="--c:#ff5500"></button>
-            <button type="button" class="color-dot" data-color="#00f0ff" title="Cyber Cyan" style="--c:#00f0ff"></button>
-            <button type="button" class="color-dot" data-color="#b026ff" title="Cosmic Purple" style="--c:#b026ff"></button>
-            <button type="button" class="color-dot" data-color="#00ff66" title="Toxic Plasma" style="--c:#00ff66"></button>
-            <button type="button" class="color-dot" data-color="#ffcc00" title="Solar Gold" style="--c:#ffcc00"></button>
-          </div>
-        </div>
-
-        <div class="control-row">
-          <label for="power-scale">Energy Intensity: <span id="power-scale-val">100%</span></label>
-          <input type="range" id="power-scale" min="50" max="180" value="100">
-        </div>
-
-        <p class="lede" style="font-size:0.8rem;margin:0">
-          💡 <strong>Gesture Controls:</strong> Hold an open palm to activate. Thrust hand or close fist to launch fire projectiles!
-        </p>
-
-        <div class="studio-actions">
-          <button type="button" id="cast-trigger" class="btn small">💥 Trigger Energy Burst</button>
-          <button type="button" id="power-clear" class="btn small ghost neutral">Disable Powers</button>
+          <button type="button" id="acc-clear" class="btn small ghost neutral">Clear All</button>
         </div>
       </div>
     </div>
@@ -160,9 +96,4 @@
   <button id="action" class="btn" disabled>Start face scan</button>
   <button id="cancel" class="btn ghost neutral" type="button">Cancel</button>
 </dialog>
-{% endblock %}
-
-{% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 {% endblock %}
