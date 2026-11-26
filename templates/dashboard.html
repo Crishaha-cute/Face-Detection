@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page %}dashboard{% endblock %}
+{% block content %}
+<div class="card wide">
+  <header class="top">
+    <h1>Welcome, {{ username }}</h1>
+    <button id="logout" class="btn small">Sign out</button>
+  </header>
+
+  <dl class="stats">
+    <div><dt>Member since</dt><dd><time data-utc="{{ created }}"></time></dd></div>
+    <div><dt>Previous sign-in</dt><dd>{% if previous %}<time data-utc="{{ previous }}"></time>{% else %}This is your first{% endif %}</dd></div>
+    <div><dt>Total sign-ins</dt><dd>{{ total }}</dd></div>
+  </dl>
+
+  <!-- Live Face Accessories Studio -->
+  <section class="studio-section">
+    <div class="studio-header">
+      <div>
+        <h2>Face Accessories Studio</h2>
+        <p class="lede" style="margin-bottom:0.5rem">Customize your face live with interactive accessories and filters.</p>
+      </div>
+      <span id="tracker-badge" class="badge">Looking for face…</span>
+    </div>
+
+    <div class="studio-container">
+      <div class="studio-viewport">
+        <video id="acc-video" autoplay playsinline muted hidden></video>
+        <canvas id="acc-canvas"></canvas>
+      </div>
+
+      <div class="studio-panel">
+        <label class="panel-label">Choose Accessories (combine any)</label>
+        <div class="accessory-grid">
+          <button type="button" class="acc-btn active" data-item="sunglasses">
+            <span class="acc-icon">🕶️</span>
+            <span class="acc-name">Sunglasses</span>
+          </button>
+          <button type="button" class="acc-btn" data-item="crown">
+            <span class="acc-icon">👑</span>
+            <span class="acc-name">Royal Crown</span>
+          </button>
+          <button type="button" class="acc-btn" data-item="tophat">
+            <span class="acc-icon">🎩</span>
+            <span class="acc-name">Top Hat</span>
+          </button>
+          <button type="button" class="acc-btn" data-item="moustache">
+            <span class="acc-icon">🥸</span>
+            <span class="acc-name">Moustache</span>
+          </button>
+          <button type="button" class="acc-btn" data-item="cybervisor">
+            <span class="acc-icon">🤖</span>
+            <span class="acc-name">Cyber Visor</span>
+          </button>
+          <button type="button" class="acc-btn" data-item="catears">
+            <span class="acc-icon">🐱</span>
+            <span class="acc-name">Cat Ears</span>
+          </button>
+          <button type="button" class="acc-btn" data-item="bunny">
+            <span class="acc-icon">🐰</span>
+            <span class="acc-name">Bunny Ears</span>
+          </button>
+          <button type="button" class="acc-btn" data-item="carnival">
+            <span class="acc-icon">🎭</span>
+            <span class="acc-name">Carnival Mask</span>
+          </button>
+        </div>
+
+        <div class="control-row">
+          <label for="acc-scale">Size scale: <span id="scale-val">100%</span></label>
+          <input type="range" id="acc-scale" min="70" max="140" value="100">
+        </div>
+
+        <div class="control-row">
+          <label for="acc-yoff">Head height adjustment: <span id="yoff-val">0px</span></label>
+          <input type="range" id="acc-yoff" min="-50" max="50" value="0">
+        </div>
+
+        <div class="studio-actions">
+          <button type="button" id="acc-snap" class="btn small">📸 Capture Snapshot</button>
+          <button type="button" id="acc-clear" class="btn small ghost neutral">Clear All</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Delete account</h2>
+    <p class="lede">Removes your account and face print permanently. We'll ask for a fresh face scan first.</p>
+    <button id="delete" class="btn small ghost">Delete my account</button>
+  </section>
+</div>
+
+<dialog id="rescan" class="modal">
+  <h2>Confirm it's you</h2>
+  <p class="lede">Deleting your account needs a fresh face scan. Follow the prompts.</p>
+  {% include "_viewfinder.html" %}
+  <p id="status" class="status" role="status" aria-live="polite"></p>
+  <button id="action" class="btn" disabled>Start face scan</button>
+  <button id="cancel" class="btn ghost neutral" type="button">Cancel</button>
+</dialog>
+{% endblock %}

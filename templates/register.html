@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Create account{% endblock %}
+{% block page %}register{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Create your face account</h1>
+  <p class="lede">Pick a username, then follow the prompts (look straight, turn your head slightly, close your eyes) while we learn your face. Only a numeric face print is saved.</p>
+  <label class="field">Username
+    <input id="username" autocomplete="username" maxlength="20" placeholder="e.g. maria_s">
+  </label>
+  {% include "_viewfinder.html" %}
+  <p id="status" class="status" role="status" aria-live="polite">Starting camera…</p>
+  <button id="action" class="btn" disabled>Start scan and save my face</button>
+  <p class="alt">Already registered? <a href="{{ url_for('login_page') }}">Sign in</a></p>
+</section>
+{% endblock %}

@@ -1,0 +1,27 @@
+<div class="scan-progress-wrap" id="scan-progress-wrap" hidden>
+  <div class="step-indicators">
+    <div class="step-item" id="step-ind-1">
+      <span class="step-circle">1</span>
+      <span class="step-label">Look Straight</span>
+    </div>
+    <div class="step-item" id="step-ind-2">
+      <span class="step-circle">2</span>
+      <span class="step-label" id="step-label-tilt">Turn Head</span>
+    </div>
+    <div class="step-item" id="step-ind-3">
+      <span class="step-circle">3</span>
+      <span class="step-label">Close Eyes</span>
+    </div>
+  </div>
+  <div class="progress-bar-bg">
+    <div class="progress-bar-fill" id="scan-progress-bar"></div>
+  </div>
+</div>
+
+<div class="finder" id="finder">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="canvas" hidden></canvas>
+  <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div class="sweep"></div>
+  <div class="prompt" id="prompt" hidden aria-live="assertive"><span id="prompt-text"></span><b id="prompt-count"></b></div>
+</div>
