@@ -11,6 +11,7 @@
 </head>
 <body data-page="{% block page %}{% endblock %}">
 <main class="shell">{% block content %}{% endblock %}</main>
+{% block scripts %}{% endblock %}
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

@@ -108,6 +108,27 @@ The user dashboard includes an interactive accessories studio that tracks facial
 
 ---
 
+## ✋ Futuristic Hand Powers & AR Particle Engine
+
+The Studio features real-time 3D hand tracking powered by **MediaPipe Hands** and interactive Canvas 2D particle physics:
+
+| Power | Icon | Behavior & Effects |
+|---|:---:|---|
+| **Pyrokinesis** | 🔥 | Roaring plasma fireball hovering in your palm with turbulent flames, rising smoke, and flying embers. Make a fist or click cast to launch high-speed fireballs with flaming tails! |
+| **Mystic Shield** | 🌀 | Doctor Strange-style holographic shield with counter-rotating sacred geometric rings, runic ticks, and glowing sparks spitting off the perimeter. |
+| **Arc Repulsor** | ⚡ | Iron Man palm reactor core with concentric collapsing energy rings and high-voltage electricity arcing from fingertips into the center. |
+| **Cyber Lightning** | ⚡ | Procedural branching fractal lightning jumping between fingertips and crackling outwards into empty space. |
+| **Cosmic Nebula** | 🪐 | Miniature black hole singularity with gravitational vortex dust particles, relativistic accretion disc, and glowing polar jets. |
+| **Cyberpunk HUD** | 🦾 | Neon holographic wireframe skeletal joint overlay with wrist tactical radar sweep and palm target lock-on telemetry. |
+
+### Hand Controls:
+- **Energy Element Color Palette**: Switch between **Inferno Red**, **Cyber Cyan**, **Cosmic Purple**, **Toxic Plasma Green**, and **Solar Gold**.
+- **Energy Intensity Slider (50% – 180%)**: Scale particle volume and visual power radius.
+- **💥 Trigger Energy Burst**: Instantly launches an energy comet and expanding neon shockwave.
+- **Interactive Dual-Mode**: Tracks live hands via webcam, with interactive pointer/touch fallback for instant responsiveness.
+
+---
+
 ## 📁 Project Structure
 
 ```
