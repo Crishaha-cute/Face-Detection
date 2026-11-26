@@ -390,62 +390,99 @@ function initAccessoriesStudio() {
     badge.textContent = "Camera unavailable";
   });
 
-  // Face landmarks state with smooth interpolation (LERP)
-  let currentFace = null;
-  let targetFace = null;
-  let detecting = false;
+  // ========================================================
+  // 1-Euro Filter & Anti-Jitter Deadband for Rock-Solid AR
+  // ========================================================
+  class OneEuroFilter {
+    constructor(minCutoff = 0.5, beta = 0.008, dCutoff = 1.0) {
+      this.minCutoff = minCutoff;
+      this.beta = beta;
+      this.dCutoff = dCutoff;
+      this.xPrev = null;
+      this.dxPrev = 0;
+      this.tPrev = null;
+    }
+    filter(x, t = performance.now()) {
+      if (this.xPrev === null || isNaN(this.xPrev)) {
+        this.xPrev = x;
+        this.dxPrev = 0;
+        this.tPrev = t;
+        return x;
+      }
+      const dt = Math.max((t - this.tPrev) / 1000, 0.001);
+      this.tPrev = t;
 
-  // Offscreen canvas for fast lightweight detection frames
+      const dx = (x - this.xPrev) / dt;
+      const edx = this.alpha(this.dCutoff, dt);
+      const dxHat = edx * dx + (1 - edx) * this.dxPrev;
+      this.dxPrev = dxHat;
+
+      const cutoff = this.minCutoff + this.beta * Math.abs(dxHat);
+      const a = this.alpha(cutoff, dt);
+      const xHat = a * x + (1 - a) * this.xPrev;
+      this.xPrev = xHat;
+      return xHat;
+    }
+    alpha(cutoff, dt) {
+      const tau = 1.0 / (2 * Math.PI * cutoff);
+      return 1.0 / (1.0 + tau / dt);
+    }
+    reset() {
+      this.xPrev = null;
+      this.dxPrev = 0;
+      this.tPrev = null;
+    }
+  }
+
+  // Multi-channel stabilizers
+  const fEyeX = new OneEuroFilter(0.65, 0.012);
+  const fEyeY = new OneEuroFilter(0.65, 0.012);
+  const fEyeDist = new OneEuroFilter(0.35, 0.004); // heavily stabilize size
+  const fAngle = new OneEuroFilter(0.30, 0.005);   // heavily stabilize rotation to prevent hat wobble
+  const fHeadTop = new OneEuroFilter(0.40, 0.006); // stabilize crown/hat base height
+  const fNoseX = new OneEuroFilter(0.65, 0.012);
+  const fNoseY = new OneEuroFilter(0.65, 0.012);
+  const fMouthX = new OneEuroFilter(0.65, 0.012);
+  const fMouthY = new OneEuroFilter(0.65, 0.012);
+
+  let rawTarget = null;
+  let detecting = false;
+  let lastTrackTime = 0;
+  let stableAngle = null;
+
+  // Offscreen canvas: 480x360 for sharper landmark resolution and low bandwidth
   const offCanvas = document.createElement("canvas");
-  offCanvas.width = 320;
-  offCanvas.height = 240;
+  offCanvas.width = 480;
+  offCanvas.height = 360;
   const offCtx = offCanvas.getContext("2d");
 
   async function startDetectionLoop() {
     while (true) {
       if (video.videoWidth && !detecting) {
         detecting = true;
+        const vAspect = video.videoHeight / (video.videoWidth || 1);
+        offCanvas.height = Math.round(offCanvas.width * vAspect);
         offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
         const dataUrl = offCanvas.toDataURL("image/jpeg", 0.65);
         try {
           const res = await post("/api/detect_landmarks", { frame: dataUrl });
           if (res.ok && res.landmarks) {
-            targetFace = res.landmarks;
+            rawTarget = res.landmarks;
+            lastTrackTime = Date.now();
             badge.textContent = "Face tracked 🎯";
             badge.classList.add("active");
-          } else {
+          } else if (Date.now() - lastTrackTime > 750) {
             badge.textContent = "Looking for face…";
             badge.classList.remove("active");
           }
         } catch {}
         detecting = false;
       }
-      await sleep(120);
+      await sleep(50);
     }
   }
 
-  function lerp(a, b, t) {
-    return a + (b - a) * t;
-  }
-
-  function updateInterpolation() {
-    if (!targetFace) return;
-    if (!currentFace) {
-      currentFace = JSON.parse(JSON.stringify(targetFace));
-      return;
-    }
-    const t = 0.35;
-    currentFace.roll = lerp(currentFace.roll, targetFace.roll, t);
-    for (const key of ["eye_left", "eye_right", "nose", "mouth_left", "mouth_right"]) {
-      currentFace[key][0] = lerp(currentFace[key][0], targetFace[key][0], t);
-      currentFace[key][1] = lerp(currentFace[key][1], targetFace[key][1], t);
-    }
-    for (let i = 0; i < 4; i++) {
-      currentFace.box[i] = lerp(currentFace.box[i], targetFace.box[i], t);
-    }
-  }
-
-  function renderLoop() {
+  function renderLoop(frameTime) {
     if (video.videoWidth && video.videoHeight) {
       if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
         canvas.width = video.videoWidth;
@@ -461,35 +498,67 @@ function initAccessoriesStudio() {
       ctx.drawImage(video, -W, 0, W, H);
       ctx.restore();
 
-      updateInterpolation();
+      const hasRecentFace = rawTarget && (Date.now() - lastTrackTime < 750);
 
-      if (currentFace && targetFace) {
-        const scaleX = W / currentFace.w;
-        const scaleY = H / currentFace.h;
+      if (hasRecentFace) {
+        const scaleX = W / rawTarget.w;
+        const scaleY = H / rawTarget.h;
 
         // In mirrored view: mirrored X = W - (raw_x * scaleX)
-        const ptA = { x: W - currentFace.eye_left[0] * scaleX, y: currentFace.eye_left[1] * scaleY };
-        const ptB = { x: W - currentFace.eye_right[0] * scaleX, y: currentFace.eye_right[1] * scaleY };
+        const ptA = { x: W - rawTarget.eye_left[0] * scaleX, y: rawTarget.eye_left[1] * scaleY };
+        const ptB = { x: W - rawTarget.eye_right[0] * scaleX, y: rawTarget.eye_right[1] * scaleY };
 
         // Ensure eye1 is strictly screen-left (smaller X) and eye2 is screen-right (larger X)
         const [eye1, eye2] = [ptA, ptB].sort((a, b) => a.x - b.x);
 
-        const nose = { x: W - currentFace.nose[0] * scaleX, y: currentFace.nose[1] * scaleY };
-        const m1 = { x: W - currentFace.mouth_left[0] * scaleX, y: currentFace.mouth_left[1] * scaleY };
-        const m2 = { x: W - currentFace.mouth_right[0] * scaleX, y: currentFace.mouth_right[1] * scaleY };
-        const mouthCenter = { x: (m1.x + m2.x) / 2, y: (m1.y + m2.y) / 2 };
+        const rawNose = { x: W - rawTarget.nose[0] * scaleX, y: rawTarget.nose[1] * scaleY };
+        const m1 = { x: W - rawTarget.mouth_left[0] * scaleX, y: rawTarget.mouth_left[1] * scaleY };
+        const m2 = { x: W - rawTarget.mouth_right[0] * scaleX, y: rawTarget.mouth_right[1] * scaleY };
+        const rawMouthCenter = { x: (m1.x + m2.x) / 2, y: (m1.y + m2.y) / 2 };
 
-        // Eye center, distance, and correct upright roll angle (0 = perfectly level)
-        const eyeCenter = { x: (eye1.x + eye2.x) / 2, y: (eye1.y + eye2.y) / 2 };
-        const eyeDist = Math.hypot(eye2.x - eye1.x, eye2.y - eye1.y);
-        const rollRad = Math.atan2(eye2.y - eye1.y, eye2.x - eye1.x);
+        const rawEyeCenter = { x: (eye1.x + eye2.x) / 2, y: (eye1.y + eye2.y) / 2 };
+        const rawEyeDist = Math.hypot(eye2.x - eye1.x, eye2.y - eye1.y);
+        let rawAngle = Math.atan2(eye2.y - eye1.y, eye2.x - eye1.x);
 
-        // Distance from eye line to top of skull / hair
-        const boxTop = currentFace.box[1] * scaleY;
-        const detectedForeheadDist = (eyeCenter.y - boxTop) * 1.15;
-        const headTopDist = Math.max(eyeDist * 1.95, detectedForeheadDist) + customYOffset;
+        // Anti-jitter deadband for rotation angle:
+        // Human head naturally has micro-tremors. Clamping small angle deltas (< 0.018 rad ≈ 1 deg)
+        // completely eliminates the side-to-side wobble on tall accessories.
+        if (stableAngle === null) {
+          stableAngle = rawAngle;
+        } else {
+          let diff = rawAngle - stableAngle;
+          while (diff > Math.PI) diff -= 2 * Math.PI;
+          while (diff < -Math.PI) diff += 2 * Math.PI;
+          if (Math.abs(diff) < 0.016) {
+            rawAngle = stableAngle; // inside deadband, keep rock solid
+          } else {
+            stableAngle += diff * 0.22; // smoothly adapt to genuine head turns
+            rawAngle = stableAngle;
+          }
+        }
 
-        // Draw active accessories
+        // Anatomically anchored head top distance: tied to stable interpupillary distance
+        const rawHeadTopDist = rawEyeDist * 1.90 + customYOffset;
+
+        // Apply 1-Euro adaptive temporal smoothing filters
+        const eyeCenterX = fEyeX.filter(rawEyeCenter.x, frameTime);
+        const eyeCenterY = fEyeY.filter(rawEyeCenter.y, frameTime);
+        const eyeDist = fEyeDist.filter(rawEyeDist, frameTime);
+        const rollRad = fAngle.filter(rawAngle, frameTime);
+        const headTopDist = fHeadTop.filter(rawHeadTopDist, frameTime);
+
+        const nose = {
+          x: fNoseX.filter(rawNose.x, frameTime),
+          y: fNoseY.filter(rawNose.y, frameTime),
+        };
+        const mouthCenter = {
+          x: fMouthX.filter(rawMouthCenter.x, frameTime),
+          y: fMouthY.filter(rawMouthCenter.y, frameTime),
+        };
+
+        const eyeCenter = { x: eyeCenterX, y: eyeCenterY };
+
+        // Draw active accessories with rock-solid coordinates
         if (activeAccessories.has("tophat")) drawTopHat(ctx, eyeCenter, eyeDist, rollRad, headTopDist, globalScale);
         if (activeAccessories.has("crown")) drawCrown(ctx, eyeCenter, eyeDist, rollRad, headTopDist, globalScale);
         if (activeAccessories.has("bunny")) drawBunnyEars(ctx, eyeCenter, eyeDist, rollRad, headTopDist, globalScale);
@@ -498,6 +567,17 @@ function initAccessoriesStudio() {
         if (activeAccessories.has("cybervisor")) drawCyberVisor(ctx, eyeCenter, eyeDist, rollRad, globalScale);
         if (activeAccessories.has("carnival")) drawCarnivalMask(ctx, eyeCenter, eyeDist, rollRad, globalScale);
         if (activeAccessories.has("moustache")) drawMoustache(ctx, nose, mouthCenter, eyeDist, rollRad, globalScale);
+      } else {
+        stableAngle = null;
+        fEyeX.reset();
+        fEyeY.reset();
+        fEyeDist.reset();
+        fAngle.reset();
+        fHeadTop.reset();
+        fNoseX.reset();
+        fNoseY.reset();
+        fMouthX.reset();
+        fMouthY.reset();
       }
     }
     requestAnimationFrame(renderLoop);
