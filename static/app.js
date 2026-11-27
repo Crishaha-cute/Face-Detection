@@ -18,6 +18,45 @@ function say(text, kind = "") {
   s.className = "status " + kind;
 }
 
+function showToast(message, kind = "bad", duration = 4500) {
+  let container = $("toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toast-container";
+    container.className = "toast-container";
+    container.setAttribute("aria-live", "assertive");
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement("div");
+  toast.className = `toast ${kind}`;
+  toast.setAttribute("role", "alert");
+
+  const icon = document.createElement("span");
+  icon.className = "toast-icon";
+  icon.textContent = kind === "ok" ? "✓" : "⚠️";
+
+  const msg = document.createElement("span");
+  msg.className = "toast-msg";
+  msg.textContent = message;
+
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "toast-close";
+  close.setAttribute("aria-label", "Dismiss notification");
+  close.textContent = "×";
+
+  const dismiss = () => {
+    if (toast.classList.contains("hiding")) return;
+    toast.classList.add("hiding");
+    setTimeout(() => toast.remove(), 200);
+  };
+  close.addEventListener("click", dismiss);
+
+  toast.append(icon, msg, close);
+  container.appendChild(toast);
+  if (duration > 0) setTimeout(dismiss, duration);
+}
+
 function flash(kind) {
   const f = $("finder");
   f.classList.remove("ok", "bad");
@@ -28,7 +67,9 @@ function flash(kind) {
 async function startCamera() {
   const video = $("video");
   if (!navigator.mediaDevices?.getUserMedia) {
-    say("Camera not available. Use HTTPS or localhost.", "bad");
+    const msg = "Camera not available. Use HTTPS or localhost.";
+    say(msg, "bad");
+    showToast(msg, "bad");
     return false;
   }
   try {
@@ -39,7 +80,9 @@ async function startCamera() {
     await video.play();
     return true;
   } catch {
-    say("Camera blocked. Allow camera access in your browser and reload.", "bad");
+    const msg = "Camera blocked. Allow camera access in your browser and reload.";
+    say(msg, "bad");
+    showToast(msg, "bad");
     return false;
   }
 }
@@ -251,7 +294,13 @@ async function cameraPage() {
     let username = "";
     if (page === "register") {
       username = $("username").value.trim();
-      if (!username) { say("Enter a username first.", "bad"); $("username").focus(); return; }
+      if (!username) {
+        const msg = "Enter a username first.";
+        say(msg, "bad");
+        showToast(msg, "bad");
+        $("username").focus();
+        return;
+      }
     }
     try {
       say("Follow the prompts on the camera.");
@@ -260,11 +309,15 @@ async function cameraPage() {
       say(page === "login" ? "Checking face print…" : "Saving your account…");
       const r = await post(page === "login" ? "/api/login" : "/api/register", { ...poses, username });
       if (r.ok) { flash("ok"); say("Done. Signing in…", "ok"); location.href = r.redirect; }
-      else { flash("bad"); hideScanProgress(); say(r.error || "Something went wrong.", "bad"); }
+      else {
+        const msg = r.error || "Something went wrong.";
+        flash("bad"); hideScanProgress(); say(msg, "bad"); showToast(msg, "bad");
+      }
     } catch (e) {
+      const msg = e.message || "Something went wrong.";
       $("prompt").hidden = true;
       hideScanProgress();
-      flash("bad"); say(e.message || "Something went wrong.", "bad");
+      flash("bad"); say(msg, "bad"); showToast(msg, "bad");
     }
   }));
 }
