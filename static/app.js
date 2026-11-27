@@ -67,9 +67,8 @@ function flash(kind) {
 async function startCamera() {
   const video = $("video");
   if (!navigator.mediaDevices?.getUserMedia) {
-    const msg = "Camera not available. Use HTTPS or localhost.";
-    say(msg, "bad");
-    showToast(msg, "bad");
+    say("");
+    showToast("Camera not available. Use HTTPS or localhost.", "bad");
     return false;
   }
   try {
@@ -80,9 +79,8 @@ async function startCamera() {
     await video.play();
     return true;
   } catch {
-    const msg = "Camera blocked. Allow camera access in your browser and reload.";
-    say(msg, "bad");
-    showToast(msg, "bad");
+    say("");
+    showToast("Camera blocked. Allow camera access in your browser and reload.", "bad");
     return false;
   }
 }
@@ -295,9 +293,8 @@ async function cameraPage() {
     if (page === "register") {
       username = $("username").value.trim();
       if (!username) {
-        const msg = "Enter a username first.";
-        say(msg, "bad");
-        showToast(msg, "bad");
+        say("");
+        showToast("Enter a username first.", "bad");
         $("username").focus();
         return;
       }
@@ -310,14 +307,12 @@ async function cameraPage() {
       const r = await post(page === "login" ? "/api/login" : "/api/register", { ...poses, username });
       if (r.ok) { flash("ok"); say("Done. Signing in…", "ok"); location.href = r.redirect; }
       else {
-        const msg = r.error || "Something went wrong.";
-        flash("bad"); hideScanProgress(); say(msg, "bad"); showToast(msg, "bad");
+        flash("bad"); hideScanProgress(); say(""); showToast(r.error || "Something went wrong.", "bad");
       }
     } catch (e) {
-      const msg = e.message || "Something went wrong.";
       $("prompt").hidden = true;
       hideScanProgress();
-      flash("bad"); say(msg, "bad"); showToast(msg, "bad");
+      flash("bad"); say(""); showToast(e.message || "Something went wrong.", "bad");
     }
   }));
 }
