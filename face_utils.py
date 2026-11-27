@@ -19,8 +19,7 @@ TILT_MIN_DEG = 4.0         # or tilting head slightly
 # Some webcam drivers send a mirrored picture, which swaps left and right. If the error message
 # shows a NEGATIVE angle when you tilt toward the requested shoulder, set FLIP_TILT=1.
 FLIP_TILT = os.environ.get("FLIP_TILT") == "1"
-CLOSED_RATIO = 0.68        # eyes-closed contrast must drop below 68% of baseline open-eye contrast
-POSE_ID_MIN = 0.20         # same-person sanity check on the tilt / eyes-closed frames
+POSE_ID_MIN = 0.20         # same-person sanity check on the turn frames
 
 
 class FaceError(Exception):

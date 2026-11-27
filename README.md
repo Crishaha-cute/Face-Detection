@@ -24,8 +24,8 @@ A modern, privacy-first biometric authentication web application powered by **Fl
 - **Privacy-by-Design**: **Zero photos or raw video frames are ever saved**. Face images are converted in-memory to 128-float embedding vectors and immediately discarded.
 - **Dynamic 3-Step Anti-Spoofing Liveness Detection**:
   1. **Look Straight**: Validates neutral frontal face orientation (yaw and roll within strict tolerances).
-  2. **Turn Head**: Prompts for horizontal head rotation (left or right) compared against a baseline to ensure real 3D head movement.
-  3. **Close Eyes**: Evaluates vertical eye region gradient and contrast ratio to verify genuine eye closure without artificial time gates.
+  2. **Turn Left**: Prompts for horizontal head rotation to the left compared against a baseline to ensure real 3D head movement.
+  3. **Turn Right**: Prompts for horizontal head rotation to the right, verifying opposite-direction movement for stronger anti-spoofing.
 - **Live Face Accessories Studio**:
   - Interactive AR canvas overlay applied in real time to the live webcam feed.
   - Automatically compensates for mirror reflections and head rotation angles.
@@ -68,20 +68,20 @@ To prevent presentation attacks (e.g. holding a printed photo, smartphone screen
 ```mermaid
 flowchart LR
     A["Camera Active"] --> B["Step 1: Look Straight"]
-    B -->|"Yaw & Roll < Bounds"| C["Step 2: Turn Head (Left/Right)"]
-    C -->|"Baseline Yaw Shift Achieved"| D["Step 3: Close Eyes"]
-    D -->|"Contrast & Gradient < 0.65"| E["Verified / Face Scanned"]
+    B -->|"Yaw & Roll < Bounds"| C["Step 2: Turn Left"]
+    C -->|"Baseline Yaw Shift Achieved"| D["Step 3: Turn Right"]
+    D -->|"Opposite Yaw Shift Achieved"| E["Verified / Face Scanned"]
 ```
 
 1. **Step 1 — Neutral Frontal Scan (`STRAIGHT_MAX_DEG = 3.0°`, `STRAIGHT_MAX_YAW = 0.035`)**:
    - Compares eye slope for roll angle and nose position relative to the eye axis for yaw angle.
-2. **Step 2 — Horizontal Head Turn (`YAW_MIN = 0.045`, `TILT_MIN_DEG = 4.0°`)**:
-   - The server or client randomly requests a `left` or `right` turn.
+2. **Step 2 — Turn Left (`YAW_MIN = 0.045`, `TILT_MIN_DEG = 4.0°`)**:
+   - Always asks the user to turn their head to the left.
    - Evaluates the nose-to-eye axis projection delta against the initial baseline.
    - Visual progress bar fills as the turn is achieved before transitioning.
-3. **Step 3 — Eye Closure Check (`CLOSED_RATIO = 0.65`)**:
-   - Uses a generous reaction delay so the user is never prematurely rejected while reading the prompt.
-   - Analyzes pixel intensity contrast and vertical gradient across the eye bounding boxes to distinguish open corneas from closed eyelids.
+3. **Step 3 — Turn Right (`YAW_MIN = 0.045`, `TILT_MIN_DEG = 4.0°`)**:
+   - After returning to center, asks the user to turn their head to the right.
+   - Verifies the opposite-direction head rotation using the same threshold logic, confirming real 3D movement.
 
 ---
 
@@ -201,11 +201,11 @@ http://localhost:5000
 | `GET` | `/register` | User registration page | - |
 | `GET` | `/login` | Biometric login page | - |
 | `GET` | `/dashboard` | User dashboard & Face Accessories Studio | Session Cookie required |
-| `POST` | `/api/challenge` | Generate randomized anti-spoofing challenge | `None` -> `{tilt: "left" \| "right"}` |
-| `POST` | `/api/verify_pose` | Validate real-time pose (yaw / roll) | `{image: "data:image/jpeg;base64,...", expected_tilt: "left"}` |
-| `POST` | `/api/register` | Register new user with liveness verification | `{username: "...", frames: {straight, tilted, closed}}` |
-| `POST` | `/api/login` | Biometric sign-in using face embedding match | `{frames: {straight, tilted, closed}}` |
-| `POST` | `/api/delete` | Delete account with face re-confirmation | `{frames: {straight, tilted, closed}}` |
+| `POST` | `/api/challenge` | Generate anti-spoofing challenge token | `None` -> `{token}` |
+| `POST` | `/api/verify_pose` | Validate real-time pose (yaw / roll / direction) | `{token, step, frame, direction, baseline_yaw, baseline_roll}` |
+| `POST` | `/api/register` | Register new user with liveness verification | `{username, token, straight, turn_left, turn_right}` |
+| `POST` | `/api/login` | Biometric sign-in using face embedding match | `{token, straight, turn_left, turn_right}` |
+| `POST` | `/api/delete` | Delete account with face re-confirmation | `{token, straight, turn_left, turn_right}` |
 | `POST` | `/api/logout` | Invalidate user session | Session Cookie required |
 | `POST` | `/api/detect_landmarks` | Fallback face landmark detection for AR studio | `{image: "data:image/jpeg;base64,..."}` |
 
@@ -222,7 +222,6 @@ Biometric and liveness thresholds are defined in [face_utils.py](file:///c:/User
 | `STRAIGHT_MAX_YAW` | `0.035` | Max allowed nose-eye horizontal offset for frontal alignment. |
 | `YAW_MIN` | `0.045` | Minimum horizontal turn required for the pose step. |
 | `TILT_MIN_DEG` | `4.0°` | Fallback angle if user tilts slightly instead of rotating. |
-| `CLOSED_RATIO` | `0.65` | Eye contrast/gradient ratio threshold. Values below 0.65 indicate closed eyelids. |
 
 ### Environment Variables
 Configure these in production:

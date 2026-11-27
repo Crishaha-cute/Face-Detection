@@ -112,22 +112,18 @@ function hideScanProgress() {
 }
 
 // Interactive step-by-step liveness scanner
-// Requires: 1. Look straight -> 2. Rotate/turn head slightly left or right -> 3. Close eyes
+// Requires: 1. Look straight -> 2. Turn left -> 3. Turn right
 async function runChallenge() {
   const c = await post("/api/challenge");
   if (!c.ok) throw new Error(c.error || "Could not start the scan.");
-
-  const tiltLabel = $("step-label-tilt");
-  if (tiltLabel) tiltLabel.textContent = `Turn ${c.tilt === "left" ? "Left" : "Right"}`;
 
   setScanStep(1, 10, []);
   $("prompt").hidden = false;
   $("prompt-count").textContent = "";
 
-  const out = { token: c.token, straight: [], tilt: [], eyes: [] };
+  const out = { token: c.token, straight: [], turn_left: [], turn_right: [] };
   let baselineRoll = 0;
   let baselineYaw = 0;
-  let openContrasts = [];
 
   // ---------- STEP 1: Look Straight ----------
   // Strictly requires 3 consecutive level frames facing camera
@@ -150,9 +146,6 @@ async function runChallenge() {
       straightPassedCount++;
       baselineRoll = res.roll || 0;
       baselineYaw = res.yaw || 0;
-      if (typeof res.contrast === "number" && res.contrast > 5) {
-        openContrasts.push(res.contrast);
-      }
       $("prompt-text").textContent = "Hold still…";
     } else {
       straightFrames = [];
@@ -162,90 +155,87 @@ async function runChallenge() {
     await sleep(140);
   }
 
-  // Calculate actual open-eye baseline contrast for this user
-  const openContrast = openContrasts.length > 0
-    ? (openContrasts.reduce((a, b) => a + b, 0) / openContrasts.length)
-    : 28.0;
-
   beep(720);
   setScanStep(2, 38, [1]);
   out.straight = straightFrames.slice(-2);
   $("prompt-text").textContent = "✓ Level! Next step…";
   await sleep(700);
 
-  // ---------- STEP 2: Rotate / Turn Head Slightly ----------
-  // Rotates head horizontally to the left or right (not ear-to-shoulder)
-  const turnPrompt = `Turn your head slightly to the ${c.tilt}`;
-  $("prompt-text").textContent = turnPrompt;
-  let tiltFrames = [];
-  let tiltPassedCount = 0;
+  // ---------- STEP 2: Turn Left ----------
+  const leftPrompt = "Turn your head slightly to the left";
+  $("prompt-text").textContent = leftPrompt;
+  let leftFrames = [];
+  let leftPassedCount = 0;
   const start2 = Date.now();
 
-  while (tiltPassedCount < 3) {
+  while (leftPassedCount < 3) {
     if (Date.now() - start2 > 60000) throw new Error("Scan timed out. Please restart.");
     const fullImg = grabFrame();
     const res = await post("/api/verify_pose", {
       token: c.token,
-      step: "turn",
+      step: "turn_left",
       frame: grabFrameSmall(),
+      direction: "left",
       baseline_yaw: baselineYaw,
       baseline_roll: baselineRoll,
     });
 
     if (res.ok && res.passed) {
-      tiltFrames.push(fullImg);
-      tiltPassedCount++;
+      leftFrames.push(fullImg);
+      leftPassedCount++;
       $("prompt-text").textContent = "Good, hold that turn…";
     } else {
-      tiltFrames = [];
-      tiltPassedCount = 0;
-      $("prompt-text").textContent = res.reason || turnPrompt;
+      leftFrames = [];
+      leftPassedCount = 0;
+      $("prompt-text").textContent = res.reason || leftPrompt;
     }
     await sleep(140);
   }
 
   beep(880);
-  setScanStep(3, 72, [1, 2]);
-  out.tilt = tiltFrames.slice(-2);
-  $("prompt-text").textContent = "✓ Turn confirmed! Next step…";
-  await sleep(700);
+  setScanStep(3, 68, [1, 2]);
+  out.turn_left = leftFrames.slice(-2);
+  $("prompt-text").textContent = "✓ Left turn confirmed! Look forward…";
+  await sleep(900);
 
-  // ---------- STEP 3: Close Eyes (Quick & Responsive) ----------
-  $("prompt-text").textContent = "Close your eyes briefly";
-  $("prompt-count").textContent = "";
+  // ---------- STEP 3: Turn Right ----------
+  const rightPrompt = "Turn your head slightly to the right";
+  $("prompt-text").textContent = rightPrompt;
   beep(660, 0.15);
-
-  // Short 300ms transition delay so the user sees the prompt and hears the chime
   await sleep(300);
 
-  let eyesFrames = [];
+  let rightFrames = [];
+  let rightPassedCount = 0;
   const start3 = Date.now();
 
-  // Requires only 2 quick verified frames (or 1 fast closure) to pass immediately
-  while (eyesFrames.length < 2) {
+  while (rightPassedCount < 3) {
     if (Date.now() - start3 > 60000) throw new Error("Scan timed out. Please restart.");
     const fullImg = grabFrame();
     const res = await post("/api/verify_pose", {
       token: c.token,
-      step: "eyes",
+      step: "turn_right",
       frame: grabFrameSmall(),
-      open_contrast: openContrast,
+      direction: "right",
+      baseline_yaw: baselineYaw,
+      baseline_roll: baselineRoll,
     });
 
     if (res.ok && res.passed) {
-      eyesFrames.push(fullImg);
-      $("prompt-text").textContent = "Keep eyes closed…";
+      rightFrames.push(fullImg);
+      rightPassedCount++;
+      $("prompt-text").textContent = "Good, hold that turn…";
     } else {
-      eyesFrames = [];
-      $("prompt-text").textContent = "Close your eyes now";
+      rightFrames = [];
+      rightPassedCount = 0;
+      $("prompt-text").textContent = res.reason || rightPrompt;
     }
-    await sleep(90);
+    await sleep(140);
   }
 
   beep(1040, 0.2);
   setScanStep(3, 100, [1, 2, 3]);
-  out.eyes = eyesFrames.length >= 2 ? eyesFrames.slice(-2) : [eyesFrames[0], eyesFrames[0]];
-  $("prompt-text").textContent = "✓ Verified! You can open your eyes";
+  out.turn_right = rightFrames.slice(-2);
+  $("prompt-text").textContent = "✓ Verified! All steps complete";
   await sleep(200);
 
   return out;

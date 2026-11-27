@@ -2,12 +2,18 @@
 {% block title %}Sign in with your face{% endblock %}
 {% block page %}login{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>Sign in with your face</h1>
-  <br>
-  {% include "_viewfinder.html" %}
-  <p id="status" class="status" role="status" aria-live="polite">Starting camera…</p>
-  <button id="action" class="btn" disabled>Start face scan</button>
-  <p class="alt">No account yet? <a href="{{ url_for('register_page') }}">Create one</a></p>
+<section class="card auth-card">
+  <div class="auth-grid">
+    <div class="auth-cam">
+      {% include "_viewfinder.html" %}
+    </div>
+    <div class="auth-body">
+      <h1>Sign in with your face</h1>
+      <p class="lede">Position your face in the frame and follow the 3-step scan.</p>
+      <p id="status" class="status" role="status" aria-live="polite">Starting camera…</p>
+      <button id="action" class="btn" disabled>Start face scan</button>
+      <p class="alt">No account yet? <a href="{{ url_for('register_page') }}">Create one</a></p>
+    </div>
+  </div>
 </section>
 {% endblock %}

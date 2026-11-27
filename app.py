@@ -6,7 +6,7 @@ import numpy as np
 from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from face_utils import (CLOSED_RATIO, MATCH_THRESHOLD, POSE_ID_MIN, STRAIGHT_MAX_DEG,
+from face_utils import (MATCH_THRESHOLD, POSE_ID_MIN, STRAIGHT_MAX_DEG,
                         TILT_MIN_DEG, YAW_MIN, FaceError, get_engine)
 
 app = Flask(__name__)
@@ -78,7 +78,7 @@ def err(msg, code=400):
 CHALLENGES = {}
 
 def run_liveness(engine, data):
-    """Check the three poses: straight, turn/tilt, eyes closed. Returns the person's face print."""
+    """Check the three poses: straight, turn left, turn right. Returns the person's face print."""
     ch = CHALLENGES.pop(data.get("token"), None)
     if not ch or ch["exp"] < time.time():
         raise FaceError("The scan timed out. Start again.")
@@ -93,35 +93,39 @@ def run_liveness(engine, data):
                 pass  # a bad frame is fine as long as another one in the set works
         if not out:
             raise FaceError({"straight": "No face found. Face the camera in good light.",
-                             "tilt": f"Lost your face while turning {ch['tilt']}. Stay in the frame.",
-                             "eyes": "Lost your face when the eyes closed. Stay in frame."}[key])
+                             "turn_left": "Lost your face while turning left. Stay in the frame.",
+                             "turn_right": "Lost your face while turning right. Stay in the frame."}[key])
         return out
 
-    straight, tilt, eyes = analyze_all("straight", 4), analyze_all("tilt", 4), analyze_all("eyes", 4)
+    straight = analyze_all("straight", 4)
+    turn_left = analyze_all("turn_left", 4)
+    turn_right = analyze_all("turn_right", 4)
 
     if max(abs(a.roll) for a in straight) > STRAIGHT_MAX_DEG:
         raise FaceError("Keep your head level for the first photo.")
 
     baseline_yaw = float(np.median([a.yaw for a in straight]))
     baseline_roll = float(np.median([a.roll for a in straight]))
-    sign = 1 if ch["tilt"] == "left" else -1
 
-    # Checks if head turned horizontally OR tilted slightly in requested direction
-    best_turn = max(tilt, key=lambda a: max(sign * (a.yaw - baseline_yaw) / YAW_MIN,
-                                            sign * (a.roll - baseline_roll) / TILT_MIN_DEG))
-    rel_yaw = sign * (best_turn.yaw - baseline_yaw)
-    rel_roll = sign * (best_turn.roll - baseline_roll)
-    if rel_yaw < YAW_MIN and rel_roll < TILT_MIN_DEG:
-        raise FaceError(f"Turn your head slightly to the {ch['tilt']}.")
+    # --- verify turn left ---
+    sign_l = 1  # left is positive direction
+    best_left = max(turn_left, key=lambda a: max(sign_l * (a.yaw - baseline_yaw) / YAW_MIN,
+                                                 sign_l * (a.roll - baseline_roll) / TILT_MIN_DEG))
+    if sign_l * (best_left.yaw - baseline_yaw) < YAW_MIN and \
+       sign_l * (best_left.roll - baseline_roll) < TILT_MIN_DEG:
+        raise FaceError("Turn your head slightly to the left.")
 
-    open_contrast = max(a.contrast for a in straight)
-    closed = min(eyes, key=lambda a: a.contrast)
-    if open_contrast <= 0 or (closed.contrast / open_contrast) > CLOSED_RATIO:
-        raise FaceError("Close your eyes fully and hold still.")
+    # --- verify turn right ---
+    sign_r = -1  # right is negative direction
+    best_right = max(turn_right, key=lambda a: max(sign_r * (a.yaw - baseline_yaw) / YAW_MIN,
+                                                   sign_r * (a.roll - baseline_roll) / TILT_MIN_DEG))
+    if sign_r * (best_right.yaw - baseline_yaw) < YAW_MIN and \
+       sign_r * (best_right.roll - baseline_roll) < TILT_MIN_DEG:
+        raise FaceError("Turn your head slightly to the right.")
 
     face_print = engine.average([a.emb for a in straight])
-    if engine.similarity(face_print, best_turn.emb) < POSE_ID_MIN or \
-       engine.similarity(face_print, closed.emb) < POSE_ID_MIN:
+    if engine.similarity(face_print, best_left.emb) < POSE_ID_MIN or \
+       engine.similarity(face_print, best_right.emb) < POSE_ID_MIN:
         raise FaceError("The face changed during the scan. Start again.")
     return face_print
 
@@ -158,17 +162,18 @@ def api_challenge():
     for k in [k for k, v in CHALLENGES.items() if v["exp"] < now]:
         del CHALLENGES[k]
     if len(CHALLENGES) > 2000: CHALLENGES.clear()
-    token, side = secrets.token_urlsafe(16), secrets.choice(["left", "right"])
-    CHALLENGES[token] = {"tilt": side, "exp": now + 90}
-    return jsonify(ok=True, token=token, tilt=side)
+    token = secrets.token_urlsafe(16)
+    CHALLENGES[token] = {"exp": now + 90}
+    return jsonify(ok=True, token=token)
 
 @app.post("/api/verify_pose")
 def api_verify_pose():
-    """Live interactive check for each step: straight, turn/rotate head, eyes closed."""
+    """Live interactive check for each step: straight, turn left, turn right."""
     data = request.get_json(silent=True) or {}
     token = data.get("token")
     step = data.get("step")
     frame = data.get("frame")
+    direction = data.get("direction")  # "left" or "right"
     ch = CHALLENGES.get(token)
     if not ch or ch["exp"] < time.time():
         return jsonify(ok=False, error="Session expired. Please restart."), 400
@@ -188,31 +193,22 @@ def api_verify_pose():
             return jsonify(ok=True, passed=False, roll=analysis.roll, reason="Keep your head level and face the camera")
         return jsonify(ok=True, passed=True, roll=analysis.roll, yaw=analysis.yaw, contrast=analysis.contrast)
 
-    elif step in ("tilt", "turn"):
+    elif step in ("turn_left", "turn_right", "turn"):
         baseline_yaw = float(data.get("baseline_yaw", 0.0))
         baseline_roll = float(data.get("baseline_roll", 0.0))
-        sign = 1 if ch["tilt"] == "left" else -1
+        d = direction or ("left" if step == "turn_left" else "right")
+        sign = 1 if d == "left" else -1
         rel_yaw = sign * (analysis.yaw - baseline_yaw)
         rel_roll = sign * (analysis.roll - baseline_roll)
 
-        # Check if head is rotated horizontally OR tilted slightly in correct direction
         if rel_yaw >= YAW_MIN or rel_roll >= TILT_MIN_DEG:
             return jsonify(ok=True, passed=True, rel_yaw=rel_yaw, rel_roll=rel_roll,
                            yaw=analysis.yaw, roll=analysis.roll)
         if rel_yaw < -0.04 or rel_roll < -3.0:
             return jsonify(ok=True, passed=False,
-                           reason=f"Wrong direction! Turn your head to the {ch['tilt']}")
+                           reason=f"Wrong direction! Turn your head to the {d}")
         return jsonify(ok=True, passed=False,
-                       reason=f"Turn your head slightly to the {ch['tilt']}")
-
-    elif step == "eyes":
-        open_contrast = float(data.get("open_contrast", 0.0))
-        if open_contrast <= 0:
-            open_contrast = 28.0
-        ratio = analysis.contrast / open_contrast
-        if ratio > CLOSED_RATIO:
-            return jsonify(ok=True, passed=False, ratio=ratio, reason="Close your eyes now")
-        return jsonify(ok=True, passed=True, ratio=ratio, contrast=analysis.contrast)
+                       reason=f"Turn your head slightly to the {d}")
 
     return jsonify(ok=False, error="Unknown step"), 400
 
